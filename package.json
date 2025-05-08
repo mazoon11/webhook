@@ -1,0 +1,17 @@
+{
+  "name": "dialogflow-webhook",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "body-parser": "^2.2.0",
+    "express": "^5.1.0",
+    "firebase-admin": "^13.3.0"
+  }
+}
