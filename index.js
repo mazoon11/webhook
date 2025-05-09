@@ -17,7 +17,7 @@ app.post('/webhook', async (req, res) => {
     const parameters = req.body.queryResult.parameters;
 
     if (intent === 'Search Doctor') {
-        let doctorName = parameters['doctor_name'];
+        let doctorName = parameters['doctor-name'];
 
         if (!doctorName) {
             return res.json({
