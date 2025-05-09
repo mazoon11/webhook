@@ -13,14 +13,19 @@ admin.initializeApp({
 });
 const db = admin.database();
 
+
 app.get('/', (req, res) => {
     res.send('Webhook is running!');
 });
 
+
 app.post('/webhook', async (req, res) => {
     try {
+        console.log('Received request from Dialogflow:', req.body); 
         const intent = req.body.queryResult.intent.displayName;
         const parameters = req.body.queryResult.parameters;
+
+        console.log('Extracted parameters:', parameters); 
 
         if (intent === 'Search Doctor') {
             let doctorName = parameters['doctor_name'];
@@ -29,13 +34,18 @@ app.post('/webhook', async (req, res) => {
                 doctorName = doctorName.name;
             }
 
+            console.log('Extracted doctorName:', doctorName);
+
             if (!doctorName) {
+                console.log('Doctor name not provided, returning response.');
                 return res.json({
                     fulfillmentText: 'Please provide a doctor name to search.'
                 });
             }
 
             const snapshot = await db.ref('/doctors').once('value');
+            console.log('Fetched doctors data:', snapshot.val()); 
+
             let foundDoctor = null;
 
             snapshot.forEach(childSnapshot => {
@@ -50,21 +60,26 @@ app.post('/webhook', async (req, res) => {
                 const wilaya = foundDoctor.wilaya || 'Not specified';
                 const price = foundDoctor.price || 'Not specified';
 
+                console.log(`Doctor found: ${foundDoctor.name}, Specialty: ${specialty}, Wilaya: ${wilaya}, Price: ${price}`); 
+
                 res.json({
                     fulfillmentText: `Doctor ${foundDoctor.name} found! Specialty: ${specialty}, Wilaya: ${wilaya}, Price: ${price} OMR.`
                 });
             } else {
+                console.log(`No doctor found with the name ${doctorName}.`); 
+
                 res.json({
                     fulfillmentText: `Sorry, no doctor found with the name ${doctorName}.`
                 });
             }
         } else {
+            console.log(`Unknown intent: ${intent}`); 
             res.json({
                 fulfillmentText: 'Sorry, I did not understand your request.'
             });
         }
     } catch (error) {
-        console.error('Error processing webhook:', error);
+        console.error('Error processing webhook:', error); 
         res.json({
             fulfillmentText: 'An error occurred while processing your request.'
         });
