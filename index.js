@@ -8,7 +8,7 @@ app.use(bodyParser.json());
 const serviceAccount = JSON.parse(process.env.firebase_service_account);
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    databaseURL: 'https://your-project-id.firebaseio.com'
+    databaseURL: 'https://final-medi-home-48142-default-rtdb.firebaseio.com'
 });
 const db = admin.database();
 
