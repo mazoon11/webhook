@@ -4,37 +4,51 @@ const admin = require('firebase-admin');
 const app = express();
 app.use(bodyParser.json());
 
-// حمّل مفتاح الخدمة من Firebase
-const serviceAccount = require('./serviceAccountKey.json');
+// Load Firebase service account from environment
+const serviceAccount = JSON.parse(process.env.firebase_service_account);
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: 'https://your-project-id.firebaseio.com'
 });
 const db = admin.database();
 
-app.post('/webhook', (req, res) => {
+app.post('/webhook', async (req, res) => {
     const intent = req.body.queryResult.intent.displayName;
     const parameters = req.body.queryResult.parameters;
 
-    if (intent === 'حجز موعد') {
-        const name = parameters['name'];
+    if (intent === 'Search Doctor') {
+        const doctorName = parameters['doctor_name'];
 
-        db.ref('/appointments').push({
-            name: name,
-            status: 'pending'
-        });
+        try {
+            const snapshot = await db.ref('/doctors').orderByChild('name').equalTo(doctorName).once('value');
 
-        res.json({
-            fulfillmentText: تم تسجيل موعد باسم ${name}
-        });
+            if (snapshot.exists()) {
+                const doctorData = snapshot.val();
+                const doctorId = Object.keys(doctorData)[0];
+                const doctor = doctorData[doctorId];
+
+                res.json({
+                    fulfillmentText: `Doctor ${doctor.name} found! Specialty: ${doctor.specialty}`
+                });
+            } else {
+                res.json({
+                    fulfillmentText: `Sorry, no doctor found with the name ${doctorName}.`
+                });
+            }
+        } catch (error) {
+            console.error('Error searching doctor:', error);
+            res.json({
+                fulfillmentText: 'An error occurred while searching for the doctor.'
+            });
+        }
     } else {
         res.json({
-            fulfillmentText: 'لم أفهم طلبك!'
+            fulfillmentText: 'Sorry, I did not understand your request.'
         });
     }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(Webhook شغّال على المنفذ ${PORT});
+    console.log(`Webhook running on port ${PORT}`);
 });
