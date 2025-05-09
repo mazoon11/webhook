@@ -17,18 +17,33 @@ app.post('/webhook', async (req, res) => {
     const parameters = req.body.queryResult.parameters;
 
     if (intent === 'Search Doctor') {
-        const doctorName = parameters['doctor_name'];
+        let doctorName = parameters['doctor_name'];
+
+        if (!doctorName) {
+            return res.json({
+                fulfillmentText: 'Please provide a doctor name to search.'
+            });
+        }
 
         try {
-            const snapshot = await db.ref('/doctors').orderByChild('name').equalTo(doctorName).once('value');
+            const snapshot = await db.ref('/doctors').once('value');
 
-            if (snapshot.exists()) {
-                const doctorData = snapshot.val();
-                const doctorId = Object.keys(doctorData)[0];
-                const doctor = doctorData[doctorId];
+            let foundDoctor = null;
+
+            snapshot.forEach(childSnapshot => {
+                const doctor = childSnapshot.val();
+                if (doctor.name.toLowerCase() === doctorName.toLowerCase()) {
+                    foundDoctor = doctor;
+                }
+            });
+
+            if (foundDoctor) {
+                const specialty = foundDoctor.TherapySpecialty || 'Not specified';
+                const wilaya = foundDoctor.wilaya || 'Not specified';
+                const price = foundDoctor.price || 'Not specified';
 
                 res.json({
-                    fulfillmentText: `Doctor ${doctor.name} found! Specialty: ${doctor.specialty}`
+                    fulfillmentText: `Doctor ${foundDoctor.name} found! Specialty: ${specialty}, Wilaya: ${wilaya}, Price: ${price} OMR.`
                 });
             } else {
                 res.json({
