@@ -1,10 +1,11 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const admin = require('firebase-admin');
+
 const app = express();
 app.use(bodyParser.json());
 
-// Load Firebase service account from environment
+
 const serviceAccount = JSON.parse(process.env.firebase_service_account);
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
@@ -17,24 +18,24 @@ app.get('/', (req, res) => {
 });
 
 app.post('/webhook', async (req, res) => {
-    const intent = req.body.queryResult.intent.displayName;
-    const parameters = req.body.queryResult.parameters;
+    try {
+        const intent = req.body.queryResult.intent.displayName;
+        const parameters = req.body.queryResult.parameters;
 
-    if (intent === 'Search Doctor') {
-        let doctorName = parameters['doctor_name'];
+        if (intent === 'Search Doctor') {
+            let doctorName = parameters['doctor_name'];
 
-       
-        if (!doctorName || (typeof doctorName === 'object' && !doctorName.name)) {
-            return res.json({
-                fulfillmentText: 'Please provide a doctor name to search.'
-            });
-        }
+            if (typeof doctorName === 'object' && doctorName.name) {
+                doctorName = doctorName.name;
+            }
 
-        doctorName = typeof doctorName === 'object' ? doctorName.name : doctorName;
+            if (!doctorName) {
+                return res.json({
+                    fulfillmentText: 'Please provide a doctor name to search.'
+                });
+            }
 
-        try {
             const snapshot = await db.ref('/doctors').once('value');
-
             let foundDoctor = null;
 
             snapshot.forEach(childSnapshot => {
@@ -57,15 +58,15 @@ app.post('/webhook', async (req, res) => {
                     fulfillmentText: `Sorry, no doctor found with the name ${doctorName}.`
                 });
             }
-        } catch (error) {
-            console.error('Error searching doctor:', error);
+        } else {
             res.json({
-                fulfillmentText: 'An error occurred while searching for the doctor.'
+                fulfillmentText: 'Sorry, I did not understand your request.'
             });
         }
-    } else {
+    } catch (error) {
+        console.error('Error processing webhook:', error);
         res.json({
-            fulfillmentText: 'Sorry, I did not understand your request.'
+            fulfillmentText: 'An error occurred while processing your request.'
         });
     }
 });
