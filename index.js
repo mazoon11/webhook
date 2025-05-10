@@ -13,7 +13,6 @@ admin.initializeApp({
 });
 const db = admin.database();
 
-
 app.get('/', (req, res) => {
     res.send('Webhook is running!');
 });
@@ -21,99 +20,93 @@ app.get('/', (req, res) => {
 
 app.get('/api/search-doctor', async (req, res) => {
     try {
-        const doctorName = req.query.name; 
+        const doctorName = req.query.name;
+        const specialty = req.query.specialty;
+        const wilaya = req.query.wilaya;
 
-        if (!doctorName) {
-            return res.status(400).json({ error: 'Please provide a doctor name to search.' });
-        }
+        const query = {}; 
 
-        console.log(`Searching for doctor: ${doctorName}`);
+        if (doctorName) query.name = doctorName.toLowerCase();
+        if (specialty) query.TherapySpecialty = specialty.toLowerCase();
+        if (wilaya) query.wilaya = wilaya.toLowerCase();
+
+        console.log(`Searching for:`, query); 
 
         const snapshot = await db.ref('/doctors').once('value');
-        console.log('Fetched doctors data:', snapshot.val()); 
-
-        let foundDoctor = null;
-
+        const filteredDoctors = [];
+		const nameKeywords = doctorName ? doctorName.toLowerCase().split(/\s+/) : [];
+		const specialtyKeywords = specialty ? specialty.toLowerCase().split(/\s+/) : [];
+		const wilayaKeywords = wilaya ? wilaya.toLowerCase().split(/\s+/) : [];
         snapshot.forEach(childSnapshot => {
             const doctor = childSnapshot.val();
-            if (doctor.name.toLowerCase() === doctorName.toLowerCase()) {
-                foundDoctor = doctor;
-            }
+            const doctorNameLC = doctor.name.toLowerCase();
+    const specialtyLC = doctor.TherapySpecialty.toLowerCase();
+    const wilayaLC = doctor.wilaya.toLowerCase();
+
+    const matchesName = nameKeywords.length === 0 || nameKeywords.some(kw => doctorNameLC.includes(kw));
+    const matchesSpecialty = specialtyKeywords.length === 0 || specialtyKeywords.some(kw => specialtyLC.includes(kw));
+    const matchesWilaya = wilayaKeywords.length === 0 || wilayaKeywords.some(kw => wilayaLC.includes(kw));
+
+    if (matchesName && matchesSpecialty && matchesWilaya) {
+        filteredDoctors.push(doctor);
+    }
         });
 
-        if (foundDoctor) {
-            console.log(`Doctor found: ${foundDoctor.name}, Specialty: ${foundDoctor.TherapySpecialty}, Wilaya: ${foundDoctor.wilaya}, Price: ${foundDoctor.price}`); 
-
-            res.json({
-                doctor: foundDoctor,
-                message: `Doctor ${foundDoctor.name} found! Specialty: ${foundDoctor.TherapySpecialty}, Wilaya: ${foundDoctor.wilaya}, Price: ${foundDoctor.price} OMR.`
-            });
+        if (filteredDoctors.length > 0) {
+            console.log(`Found ${filteredDoctors.length} doctors matching criteria.`);
+            res.json({ doctors: filteredDoctors });
         } else {
-            console.log(`No doctor found with the name ${doctorName}.`);
-            res.status(404).json({ error: `No doctor found with the name ${doctorName}.` });
+            console.log(`No doctors found.`);
+            res.status(404).json({ error: 'No doctors found with the given criteria.' });
         }
     } catch (error) {
-        console.error('Error fetching doctor:', error);
-        res.status(500).json({ error: 'An error occurred while searching for the doctor.' });
+        console.error('Error fetching doctors:', error);
+        res.status(500).json({ error: 'An error occurred while searching for doctors.' });
     }
 });
 
 
 app.post('/webhook', async (req, res) => {
     try {
-        console.log('Received request from Dialogflow:', req.body);
+        console.log('Received request from Dialogflow:', req.body); 
         const intent = req.body.queryResult.intent.displayName;
         const parameters = req.body.queryResult.parameters;
 
         console.log('Extracted parameters:', parameters); 
 
         if (intent === 'Search Doctor') {
-            let doctorName = parameters['doctor-name'];
+            const doctorName = parameters['doctor-name'];
+            const specialty = parameters['specialty'];
+            const wilaya = parameters['wilaya'];
 
-            if (Array.isArray(doctorName) && doctorName.length > 0) {
-                doctorName = doctorName[0].name; 
-            }
+            const query = {};
+            if (doctorName) query.name = doctorName.toLowerCase();
+            if (specialty) query.TherapySpecialty = specialty.toLowerCase();
+            if (wilaya) query.wilaya = wilaya.toLowerCase();
 
-            console.log('Extracted doctorName:', doctorName); 
-
-          
-            if (!doctorName) {
-                console.log('Doctor name not provided, returning response.');
-                return res.json({
-                    fulfillmentText: 'Please provide a doctor name to search.'
-                });
-            }
-
-            // البحث عن الطبيب في Firebase
             const snapshot = await db.ref('/doctors').once('value');
-            console.log('Fetched doctors data:', snapshot.val()); 
-
-            let foundDoctor = null;
+            const filteredDoctors = [];
 
             snapshot.forEach(childSnapshot => {
                 const doctor = childSnapshot.val();
-                if (doctor.name.toLowerCase() === doctorName.toLowerCase()) {
-                    foundDoctor = doctor;
+                const matchesName = !doctorName || doctor.name.toLowerCase() === doctorName;
+                const matchesSpecialty = !specialty || doctor.TherapySpecialty.toLowerCase() === specialty;
+                const matchesWilaya = !wilaya || doctor.wilaya.toLowerCase() === wilaya;
+
+                if (matchesName && matchesSpecialty && matchesWilaya) {
+                    filteredDoctors.push(doctor);
                 }
             });
 
-            if (foundDoctor) {
-                console.log(`Doctor found: ${foundDoctor.name}, Specialty: ${foundDoctor.TherapySpecialty}, Wilaya: ${foundDoctor.wilaya}, Price: ${foundDoctor.price}`); 
-
-                res.json({
-                    fulfillmentText: `Doctor ${foundDoctor.name} found! Specialty: ${foundDoctor.TherapySpecialty}, Wilaya: ${foundDoctor.wilaya}, Price: ${foundDoctor.price} OMR.`
-                });
+            if (filteredDoctors.length > 0) {
+                const responseText = `Found ${filteredDoctors.length} doctors matching criteria.`;
+                res.json({ fulfillmentText: responseText });
             } else {
-                console.log(`No doctor found with the name ${doctorName}.`);
-                res.json({
-                    fulfillmentText: `Sorry, no doctor found with the name ${doctorName}.`
-                });
+                res.json({ fulfillmentText: 'No doctors found with the given criteria.' });
             }
         } else {
             console.log(`Unknown intent: ${intent}`);
-            res.json({
-                fulfillmentText: 'Sorry, I did not understand your request.'
-            });
+            res.json({ fulfillmentText: 'Sorry, I did not understand your request.' });
         }
     } catch (error) {
         console.error('Error processing webhook:', error);
