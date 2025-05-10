@@ -20,34 +20,25 @@ app.get('/', (req, res) => {
 
 app.get('/api/search-doctor', async (req, res) => {
     try {
-        const doctorName = req.query.name;
-        const specialty = req.query.name;
-        const wilaya = req.query.name;
+ const searchText = req.query.name?.toLowerCase() || '';
+const keywords = searchText.split(/\s+/);
 
-        const query = {}; 
+const snapshot = await db.ref('/doctors').once('value');
+const filteredDoctors = [];
 
-        if (doctorName) query.name = doctorName.toLowerCase();
-        if (specialty) query.TherapySpecialty = specialty.toLowerCase();
-        if (wilaya) query.wilaya = wilaya.toLowerCase();
-
-        console.log(`Searching for:`, query); 
-
-        const snapshot = await db.ref('/doctors').once('value');
-        const filteredDoctors = [];
-		const nameKeywords = doctorName ? doctorName.toLowerCase().split(/\s+/) : [];
-		const specialtyKeywords = specialty ? specialty.toLowerCase().split(/\s+/) : [];
-		const wilayaKeywords = wilaya ? wilaya.toLowerCase().split(/\s+/) : [];
-        snapshot.forEach(childSnapshot => {
-            const doctor = childSnapshot.val();
-            const doctorNameLC = doctor.name.toLowerCase();
+snapshot.forEach(childSnapshot => {
+    const doctor = childSnapshot.val();
+    const doctorNameLC = doctor.name.toLowerCase();
     const specialtyLC = doctor.TherapySpecialty.toLowerCase();
     const wilayaLC = doctor.wilaya.toLowerCase();
 
-    const matchesName = nameKeywords.length === 0 || nameKeywords.some(kw => doctorNameLC.includes(kw));
-    const matchesSpecialty = specialtyKeywords.length === 0 || specialtyKeywords.some(kw => specialtyLC.includes(kw));
-    const matchesWilaya = wilayaKeywords.length === 0 || wilayaKeywords.some(kw => wilayaLC.includes(kw));
+    const matches = keywords.some(kw =>
+        doctorNameLC.includes(kw) ||
+        specialtyLC.includes(kw) ||
+        wilayaLC.includes(kw)
+    );
 
-    if (matchesName && matchesSpecialty && matchesWilaya) {
+if (matches) {
         filteredDoctors.push(doctor);
     }
         });
