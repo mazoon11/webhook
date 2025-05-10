@@ -21,8 +21,8 @@ app.get('/', (req, res) => {
 app.get('/api/search-doctor', async (req, res) => {
     try {
         const doctorName = req.query.name;
-        const specialty = req.query.specialty;
-        const wilaya = req.query.wilaya;
+        const specialty = req.query.name;
+        const wilaya = req.query.name;
 
         const query = {}; 
 
