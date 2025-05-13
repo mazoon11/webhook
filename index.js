@@ -20,46 +20,41 @@ app.get('/', (req, res) => {
 
 app.get('/api/search-doctor', async (req, res) => {
     try {
-        const searchText = req.query.name?.toLowerCase().trim() || '';
-        if (!searchText) {
-            return res.status(400).json({ error: 'Search text is required.' });
-        }
+ const searchText = req.query.name?.toLowerCase() || '';
+const keywords = searchText.split(/\s+/);
 
-        const keywords = searchText.split(/\s+/);
+const snapshot = await db.ref('/doctors').once('value');
+const filteredDoctors = [];
 
-        const snapshot = await db.ref('/doctors').once('value');
-        const filteredDoctors = [];
+snapshot.forEach(childSnapshot => {
+    const doctor = childSnapshot.val();
+    const doctorNameLC = doctor.name.toLowerCase();
+    const specialtyLC = doctor.TherapySpecialty.toLowerCase();
+    const wilayaLC = doctor.wilaya.toLowerCase();
 
-        snapshot.forEach(childSnapshot => {
-            const doctor = childSnapshot.val();
+    const matches = keywords.some(kw =>
+        doctorNameLC.includes(kw) ||
+        specialtyLC.includes(kw) ||
+        wilayaLC.includes(kw)
+    );
 
-            const doctorNameLC = (doctor.name || '').toLowerCase();
-            const specialtyLC = (doctor.TherapySpecialty || '').toLowerCase();
-            const wilayaLC = (doctor.wilaya || '').toLowerCase();
-
-          
-            const nameMatch = keywords.every(kw => doctorNameLC.includes(kw));
-            const specialtyMatch = keywords.every(kw => specialtyLC.includes(kw));
-            const wilayaMatch = keywords.every(kw => wilayaLC.includes(kw));
-
-            if (nameMatch || specialtyMatch || wilayaMatch) {
-                filteredDoctors.push(doctor);
-            }
+if (matches) {
+        filteredDoctors.push(doctor);
+    }
         });
 
         if (filteredDoctors.length > 0) {
-            console.log(`✅ Found ${filteredDoctors.length} doctors.`);
+            console.log(`Found ${filteredDoctors.length} doctors matching criteria.`);
             res.json({ doctors: filteredDoctors });
         } else {
-            console.log('❌ No doctors found.');
+            console.log(`No doctors found.`);
             res.status(404).json({ error: 'No doctors found with the given criteria.' });
         }
     } catch (error) {
-        console.error('❌ Error fetching doctors:', error);
+        console.error('Error fetching doctors:', error);
         res.status(500).json({ error: 'An error occurred while searching for doctors.' });
     }
 });
-
 
 
 app.post('/webhook', async (req, res) => {
