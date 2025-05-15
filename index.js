@@ -44,10 +44,10 @@ if (matches) {
         });
 
         if (filteredDoctors.length > 0) {
-            console.log('Found ${filteredDoctors.length} doctors matching criteria.');
+            console.log(`Found ${filteredDoctors.length} doctors matching criteria.`);
             res.json({ doctors: filteredDoctors });
         } else {
-            console.log('No doctors found.');
+            console.log(`No doctors found.`);
             res.status(404).json({ error: 'No doctors found with the given criteria.' });
         }
     } catch (error) {
